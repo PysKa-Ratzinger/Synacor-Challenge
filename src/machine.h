@@ -1,5 +1,4 @@
-#ifndef MACHINE_H_
-#define MACHINE_H_
+#pragma once
 
 #include <stdint.h>
 #include <limits.h>
@@ -12,18 +11,30 @@
  * in time
  */
 struct machine {
-    /* ram: 15-bit address space storing 16-bit values
+    /*
+     * ram: 15-bit address space storing 16-bit values
      */
-    uint16_t ram[0x1<<15];
+    uint16_t ram[0x1<<14];
 
-    /* reg: 8 registers holding 16-bit values
+    /*
+     * reg: 8 registers holding 16-bit values
      */
     uint16_t reg[8];
+
+    /*
+     * ip: Instruction pointer
+     */
+    uint16_t *ip;
 
     /*
      * stack: Unbounded stack which holds individual 16-bit values
      */
     struct stack16* stack;
+
+    /*
+     * debugger:09
+     */
+    struct debugger* debugger;
 };
 
 /*
@@ -37,11 +48,19 @@ struct machine* machine_new();
 void machine_free(struct machine* machine);
 
 /*
+ * machine_tick: Executes the current machine code
+ */
+int machine_tick(struct machine* machine);
+
+/*
+ * machine_run: Runs the machine... :P
+ */
+void machine_run(struct machine* machine);
+
+/*
  * machine_load_program: Loads a program into the machines memory
  *
  * Returns the size of the program in bytes
  */
 size_t machine_load_program(struct machine* machine, int fd);
-
-#endif  // MACHINE_H_
 

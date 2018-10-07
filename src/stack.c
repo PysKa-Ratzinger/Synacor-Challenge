@@ -1,5 +1,7 @@
 #include "stack.h"
 
+#include <stdio.h>
+
 /*
  * struct stack16_cell: A single cell capable of holding 32 16-bit values.
  *
@@ -153,5 +155,19 @@ int stack16_pop(struct stack16* s, uint16_t* val) {
         s->top = new_top;
     }
     return 0;
+}
+
+void stack16_print(struct stack16* s) {
+	struct stack16* tmp = stack16_create();
+	uint16_t val;
+	while (stack16_pop(s, &val) == 0) {
+		stack16_push(tmp, val);
+	}
+	printf("STACK BASE\n");
+	while (stack16_pop(tmp, &val) == 0) {
+		printf(": %04x\n", val);
+		stack16_push(s, val);
+	}
+	printf("STACK TOP\n");
 }
 

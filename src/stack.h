@@ -27,5 +27,10 @@ int stack16_push(struct stack16* s, uint16_t value);
  */
 int stack16_pop(struct stack16* s, uint16_t* val);
 
+/*
+ * Prints the stack
+ */
+void stack16_print(struct stack16* s);
+
 #endif  // STACK_H_
 
