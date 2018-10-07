@@ -1,0 +1,118 @@
+
+0B0E: // After it gets out of asking a command
+
+SET  r0 6576
+SET  r1 0020
+CALL 0623
+EQ   r1 r0 7fff
+JZ   r1 0b20
+
+-------------------------------------------
+
+GET_INPUT:
+
+// Prolog
+0x06e7: PUSH R0   
+0x06e9: PUSH R2   
+0x06eb: PUSH R3   
+0x06ed: PUSH R4   
+0x06ef: PUSH R5   
+
+// r1 - start of buffer
+// r0 - number of characters
+
+0x06f1: ADD  R2    R1    R0    // r2 = r1 + r0 // r2 - end of buffer
+0x06f5: SET  R0    R1          // r0 = r1      // r0 becomes the start of the buffer
+0x06f8: SET  R5    0000        // r5 = 0       // r5 - number of chars read
+0x06fb: ADD  R0    R0    0001  // r0++ <-+
+0x06ff: GT   R3    R0    R2    //        |
+0x0703: JNZ  R3    0718        // --+    | if (r0 > r2)
+0x0706: IN   R4                //   |    | Read char -> r4
+0x0708: EQ   R3    R4    000a  //   |    |
+0x070c: JNZ  R3    0718        // --+    | if (r4 == '\n')
+0x070f: WMEM R0    R4          //   |    | *r0 = r4
+0x0712: ADD  R5    R5    0001  //   |    | r5++
+0x0716: JMP  06fb              // --+----+
+0x0718: WMEM R1    R5          // <-+      *r1 = r5
+
+// Exhaust the rest of the
+// input, as there is no more
+// buffer to save the data to
+0x071b: EQ   R3    R4    000a  // <-+
+0x071f: JNZ  R3    0726        // --+-+ if (r4 == '\n')
+0x0722: IN   R4                //   | |
+0x0724: JMP  071b              // --+ |
+                                      |
+// Epilog                             |
+0x0726: POP  R5 <---------------------+
+0x0728: POP  R4   
+0x072a: POP  R3   
+0x072c: POP  R2   
+0x072e: POP  R0   
+0x0730: RET
+
+-------------------------------------------
+
+0623: Parameters (r1, r2) Returns 0607 (0645, r1)
+
+// Save r1 and r2 registers
+PUSH r1
+PUSH r2
+SET  r2 r1
+SET  r1 0645
+CALL 0607	// Calls 0607 with (0645, r1)
+
+// Restore registers
+POP  r2
+POP  r1
+RET
+
+-------------------------------------------
+
+0607: Parameters (r1, r2) Returns (r0)
+
+// Save r1 and r3 registers
+0x0607: PUSH r1
+0x0609: PUSH r3
+
+0x060b: RMEM r3   (r0)                // Reads memory from r0
+0x060d: JZ   r3   061B ------------+  // If it is zero
+0x0610: CALL 05b2  (???)           |
+0x0612: JNZ  r1   061B ------------+
+0x0615: SET  r0   r2               |
+0x0618: JMP  061E ---------------+ |
+0x061a: SET  r0   7FFF  <--------|-+  // Set r0 to 7fff (-1)
+                                 |
+// Restore the registers         |
+0x061d: POP  r3  <---------------+
+0x061f: POP  r1
+
+0x0621: RET	 Return r0  (Probably a pointer to something)
+
+-------------------------------------------
+
+// Saves Registers r0, r3, r4, r5 and r6
+0x05b2: PUSH r0   
+0x05b4: PUSH r3   
+0x05b6: PUSH r4   
+0x05b8: PUSH r5   
+0x05ba: PUSH r6   
+
+0x05bc: SET  r6    r0         // r6 = r0
+0x05bf: SET  r5    r1         // r5 = r1
+0x05c2: RMEM r4    r0         // r4 = *r0
+0x05c5: SET  r1    0000       // r1 = 0
+0x05c8: ADD  r3    0001  r1   // r3 = r1 + 1  <---------+
+0x05cc: GT   r0    r3    r4   // r0 = r3 > r4           |
+0x05d0: JNZ  r0    05e3       // if (r0) goto 05e3 ---+ |
+0x05d3: ADD  r3    r3    r6   // r3 += r6             | |
+0x05d7: RMEM r0    r3         // r0 = *r3             | |
+0x05da: CALL r5               // (*r5)() // Here r5 == r1, as set before
+0x05dc: ADD  r1    r1    0001 // r1++                 | |
+0x05e0: JNZ  r1    05c8       // if (r1) goto 05c8 ---+-+
+                                                      |
+// Restore registers                                  |
+0x05e3: POP  r6               // <--------------------+
+0x05e5: POP  r5               //
+0x05e7: POP  r4               //
+
