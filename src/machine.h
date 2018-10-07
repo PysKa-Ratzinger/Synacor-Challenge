@@ -14,7 +14,7 @@ struct machine {
     /*
      * ram: 15-bit address space storing 16-bit values
      */
-    uint16_t ram[0x1<<14];
+    uint16_t ram[0x1<<15];
 
     /*
      * reg: 8 registers holding 16-bit values

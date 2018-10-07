@@ -28,8 +28,10 @@
 #define IN   20
 #define NOP  21
 
-#define ASSERT_REG(x) {if ((x)<= 0x7fff || ((x)&0x7fff)>7) return 1;}
-#define ASSERT_VALID(x) {if ((x)>0x7fff+7) return 1;}
+#define ASSERT_REG(x) {if ((x)<= 0x7fff || ((x)&0x7fff)>7) { \
+	printf("Invalid REG! (%04x)\n", (x)); return 1;}}
+#define ASSERT_VALID(x) {if ((x)>0x7fff+8) { \
+	printf("Invalid VAL! (%04x)\n", (x)); return 1;}}
 #define MACHINE_REG(m, a) ((m)->reg[(a)&0x7fff])
 #define MACHINE_VAL(m, b) (((b) <= 0x7fff) ? (b) : MACHINE_REG((m),(b)))
 #define CAP(x) ((x)&0x7fff)
@@ -120,22 +122,22 @@ char machine_jmp(struct machine* m, uint16_t a) {
 	return 0;
 }
 
-char machine_jz(struct machine* m, uint16_t a) {
+char machine_jz(struct machine* m, uint16_t a, uint16_t b) {
 	ASSERT_VALID(a);
-	if (a == 0) {
-		return machine_jmp(m, a);
+	if (MACHINE_VAL(m, a) == 0) {
+		return machine_jmp(m, b);
 	} else {
-		m->ip += 2;
+		m->ip += 3;
 	}
 	return 0;
 }
 
-char machine_jnz(struct machine* m, uint16_t a) {
+char machine_jnz(struct machine* m, uint16_t a, uint16_t b) {
 	ASSERT_VALID(a);
-	if (a != 0) {
-		return machine_jmp(m, a);
+	if (MACHINE_VAL(m, a) != 0) {
+		return machine_jmp(m, b);
 	} else {
-		m->ip += 2;
+		m->ip += 3;
 	}
 	return 0;
 }
@@ -144,7 +146,7 @@ char machine_and(struct machine* m, uint16_t a, uint16_t b, uint16_t c) {
 	ASSERT_REG(a);
 	ASSERT_VALID(b);
 	ASSERT_VALID(c);
-	MACHINE_REG(m,a) = MACHINE_VAL(m,b) & MACHINE_VAL(m,c);
+	MACHINE_REG(m,a) = CAP(MACHINE_VAL(m,b) & MACHINE_VAL(m,c));
 	m->ip += 4;
 	return 0;
 }
@@ -153,7 +155,7 @@ char machine_or(struct machine* m, uint16_t a, uint16_t b, uint16_t c) {
 	ASSERT_REG(a);
 	ASSERT_VALID(b);
 	ASSERT_VALID(c);
-	MACHINE_REG(m,a) = MACHINE_VAL(m,b) | MACHINE_VAL(m,c);
+	MACHINE_REG(m,a) = CAP(MACHINE_VAL(m,b) | MACHINE_VAL(m,c));
 	m->ip += 4;
 	return 0;
 }
@@ -186,7 +188,7 @@ char machine_mod(struct machine* m, uint16_t a, uint16_t b, uint16_t c) {
 	ASSERT_REG(a);
 	ASSERT_VALID(b);
 	ASSERT_VALID(c);
-	MACHINE_REG(m,a) = MACHINE_VAL(m,b) % MACHINE_VAL(m,c);
+	MACHINE_REG(m,a) = CAP(MACHINE_VAL(m,b) % MACHINE_VAL(m,c));
 	m->ip += 4;
 	return 0;
 }
@@ -194,7 +196,7 @@ char machine_mod(struct machine* m, uint16_t a, uint16_t b, uint16_t c) {
 char machine_rmem(struct machine* m, uint16_t a, uint16_t b) {
 	ASSERT_REG(a);
 	ASSERT_VALID(b);
-	MACHINE_REG(m,a) = m->ram[MACHINE_VAL(m,b)];
+	MACHINE_REG(m,a) = CAP(m->ram[MACHINE_VAL(m,b)]);
 	m->ip += 3;
 	return 0;
 }
@@ -249,8 +251,8 @@ int machine_tick(struct machine* machine) {
 		case EQ:   return machine_eq(  machine, op[1], op[2], op[3]);
 		case GT:   return machine_gt(  machine, op[1], op[2], op[3]);
 		case JMP:  return machine_jmp( machine, op[1]);
-		case JNZ:  return machine_jnz( machine, op[1]);
-		case JZ:   return machine_jz(  machine, op[1]);
+		case JNZ:  return machine_jnz( machine, op[1], op[2]);
+		case JZ:   return machine_jz(  machine, op[1], op[2]);
 		case ADD:  return machine_add( machine, op[1], op[2], op[3]);
 		case MULT: return machine_mult(machine, op[1], op[2], op[3]);
 		case MOD:  return machine_mod( machine, op[1], op[2], op[3]);

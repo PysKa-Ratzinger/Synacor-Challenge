@@ -18,3 +18,9 @@ void machine_attach_debugger(struct machine* m, struct debugger* d);
 
 void debugger_tick(struct debugger* d);
 
+void debugger_set_breakpoint(struct debugger* d, uint16_t ip);
+
+void debugger_unset_breakpoint(struct debugger* d, uint16_t ip);
+
+void debugger_print_memory(struct debugger* d, uint16_t start, uint16_t offset);
+
