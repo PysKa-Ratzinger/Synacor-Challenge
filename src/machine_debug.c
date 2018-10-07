@@ -6,10 +6,14 @@
 
 #define CIRCULAR_SIZE 105
 #define MAX_BREAKPOINTS 500
+#define MAX_STATES 10
 
 struct debugger {
 	struct machine* m;
 	struct circular_array_16* ip_history;
+
+	struct machine* states[MAX_STATES];
+	char states_exist[MAX_STATES];
 
 	uint16_t breakpoints[500];
 	size_t num_breakpoints;
@@ -21,6 +25,7 @@ struct debugger {
 	char debug_regs;
 	char debug_disass;
 	char debug_enabled;
+	char debug_memory;
 };
 
 struct debugger* machine_debugger_create() {
@@ -40,6 +45,14 @@ void machine_debugger_free(struct debugger* d) {
 	free(d);
 }
 
+void debugger_debug_enable(struct debugger* d) {
+	d->debug_enabled = 1;
+}
+
+void debugger_debug_disable(struct debugger* d) {
+	d->debug_enabled = 0;
+}
+
 static void debugger_print_ip_history(struct debugger* dbg) {
 	printf("HISTORY BEGIN:\n");
 	circular_array_print(dbg->ip_history);
@@ -53,7 +66,7 @@ static void debugger_print_stack(struct machine* m) {
 static char* machine_get_mem_repr(uint16_t addr) {
 	static char res[50];
 	if (addr <= 0x7fff) {
-		snprintf(res, 50, "M(%04x)", addr);
+		snprintf(res, 50, "%04x", addr);
 		return res;
 	}
 
@@ -61,7 +74,7 @@ static char* machine_get_mem_repr(uint16_t addr) {
 	if (addr <= 7) {
 		snprintf(res, 50, "R%u", addr);
 	} else {
-		snprintf(res, 50, "?%04x?", addr);
+		snprintf(res, 50, "%04x?", addr);
 	}
 	return res;
 }
@@ -98,18 +111,9 @@ static int debugger_disas(struct machine* machine, size_t opcodes) {
 			printf("%04x%19s???\n", op, "");
 		} else {
 			size_t num_ops = op_size[op];
-			size_t bytes = 0;
-			bytes += printf("%04x", op);
-			for (size_t i=0; i<num_ops; i++) {
-				bytes += printf(" %04x", fake_ip[i+1]);
-			}
-			while (bytes < 22) {
-				bytes += printf(" ");
-			}
-			printf(" ");
 			printf("%-4s", op_names[op]);
 			for (size_t i=0; i<num_ops; i++) {
-				printf(" %-7s", machine_get_mem_repr(fake_ip[1+i]));
+				printf(" %-5s", machine_get_mem_repr(fake_ip[1+i]));
 			}
 			printf("\n");
 			fake_ip += num_ops;
@@ -127,6 +131,11 @@ void machine_dump(struct machine* machine) {
 	printf("=========== DEBUG INFO ==============\n");
 	if (dbg->debug_ip_history) {
 		debugger_print_ip_history(dbg);
+		printf("-------------------------------------\n");
+	}
+
+	if (dbg->debug_memory) {
+		debugger_print_memory(dbg, 0, 0);
 		printf("-------------------------------------\n");
 	}
 
@@ -178,7 +187,6 @@ static int debugger_shell(struct debugger* d) {
 	} else {
 		memcpy(prev_buffer, buffer, sizeof(256));
 	}
-	printf("Executing %s\n", cmd);
 
 	if (strncmp(cmd, "history_on", 10) == 0) {
 		d->debug_ip_history = 1;
@@ -196,8 +204,16 @@ static int debugger_shell(struct debugger* d) {
 		d->debug_disass = 1;
 	} else if (strncmp(cmd, "disass_off", 10) == 0) {
 		d->debug_disass = 0;
+	} else if (strncmp(cmd, "memory_off", 10) == 0) {
+		d->debug_memory = 0;
 	} else if (strncmp(cmd, "dops", 4) == 0) {
 		d->debug_opcodes = strtol(cmd + 5, NULL, 16);
+	} else if (strncmp(cmd, "save", 4) == 0) {
+		size_t pos = strtol(cmd+5, NULL, 10);
+		debugger_save_state(d, pos);
+	} else if (strncmp(cmd, "load", 4) == 0) {
+		size_t pos = strtol(cmd+5, NULL, 10);
+		debugger_load_state(d, pos);
 	} else if (strncmp(cmd, "s", 1) == 0) {
 		return 1;
 	} else if (strncmp(cmd, "b", 1) == 0) {
@@ -207,9 +223,8 @@ static int debugger_shell(struct debugger* d) {
 	} else if (strncmp(cmd, "lb", 2) == 0) {
 		debugger_list_breakpoints(d);
 	} else if (strncmp(cmd, "c", 1) == 0) {
-		d->debug_enabled = 0;
+		debugger_debug_disable(d);
 		d->skips = strtol(cmd+2, NULL, 16);
-		printf("Skipping %lu\n", d->skips);
 		return 1;
 	} else if (strncmp(cmd, "p", 1) == 0) {
 		char* endptr;
@@ -260,7 +275,7 @@ void debugger_tick(struct debugger* d) {
 	if (!d->debug_enabled) {
 		if (debugger_get_breakpoint(d, ip) != -1) {
 			if (d->skips == 0) {
-				d->debug_enabled = 1;
+				debugger_debug_enable(d);
 			} else {
 				d->skips--;
 			}
@@ -278,20 +293,96 @@ void debugger_tick(struct debugger* d) {
 	return;
 }
 
+char get_printable(uint16_t val) {
+	if (val >= 0x21 && val <= 0x7e) {
+		return (char) val;
+	}
+	return '.';
+}
+
 void debugger_print_memory(struct debugger* d, uint16_t start, uint16_t offset) {
+	static uint16_t real_start = 0;
+	static uint16_t real_offset = 0;
+	if (start != offset) {
+		real_start = start;
+		real_offset = offset;
+	} else {
+		start = real_start;
+		offset = real_offset;
+	}
+	d->debug_memory = 1;
+
+
+	start &= 0x7ff0;
+
 	printf("MEMORY DUMP (%04x, %04x)\n", start, start + offset);
-	size_t it = 0;
 	while (offset) {
-		if (it % 8 == 0) {
-			printf("\n%04x: ", start);
-		} else if (it % 4 == 0) {
-			printf(" ");
-		}
-		printf("%04x ", d->m->ram[start]);
-		start++;
-		offset--;
-		it++;
+		uint16_t* ram = d->m->ram;
+		printf("%04x: %04x %04x %04x %04x  "
+				"%04x %04x %04x %04x    "
+				"%04x %04x %04x %04x  "
+				"%04x %04x %04x %04x | %c%c%c%c%c%c%c%c "
+				"%c%c%c%c%c%c%c%c |\n", start,
+				ram[start],
+				ram[start+1],
+				ram[start+2],
+				ram[start+3],
+				ram[start+4],
+				ram[start+5],
+				ram[start+6],
+				ram[start+7],
+				ram[start+8],
+				ram[start+9],
+				ram[start+10],
+				ram[start+11],
+				ram[start+12],
+				ram[start+13],
+				ram[start+14],
+				ram[start+15],
+				get_printable(ram[start]),
+				get_printable(ram[start+1]),
+				get_printable(ram[start+2]),
+				get_printable(ram[start+3]),
+				get_printable(ram[start+4]),
+				get_printable(ram[start+5]),
+				get_printable(ram[start+6]),
+				get_printable(ram[start+7]),
+				get_printable(ram[start+8]),
+				get_printable(ram[start+9]),
+				get_printable(ram[start+10]),
+				get_printable(ram[start+11]),
+				get_printable(ram[start+12]),
+				get_printable(ram[start+13]),
+				get_printable(ram[start+14]),
+				get_printable(ram[start+15]));
+		start += 16;
+		if (offset <= 16)
+			break;
+		offset -= 16;
 	}
 	printf("\n");
+}
+
+void debugger_save_state(struct debugger* d, size_t pos) {
+	if (pos > MAX_STATES)
+		return;
+	if (d->states[pos]) {
+		machine_free(d->states[pos]);
+	}
+	d->states[pos] = machine_duplicate(d->m);
+	d->states_exist[pos] = 1;
+	printf("Saved into state %lu\n", pos);
+}
+
+void debugger_load_state(struct debugger* d, size_t pos) {
+	if (pos > MAX_STATES)
+		return;
+	if (d->states_exist[pos]) {
+		d->m->debugger = NULL;
+		machine_free(d->m);
+		d->m = machine_duplicate(d->states[pos]);
+		d->m->debugger = d;
+	}
+	printf("Loaded state %lu\n", pos);
 }
 

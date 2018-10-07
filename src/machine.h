@@ -6,6 +6,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#define MAX_INPUT_SIZE 128
+
 /*
  * struct machine: Represents the state of the virtual machine at any point
  * in time
@@ -63,4 +65,9 @@ void machine_run(struct machine* machine);
  * Returns the size of the program in bytes
  */
 size_t machine_load_program(struct machine* machine, int fd);
+
+/*
+ * machine_duplicate: Duplicates a machine
+ */
+struct machine* machine_duplicate(struct machine* machine);
 

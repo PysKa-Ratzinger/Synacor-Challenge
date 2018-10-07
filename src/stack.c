@@ -169,5 +169,21 @@ void stack16_print(struct stack16* s) {
 		stack16_push(s, val);
 	}
 	printf("STACK TOP\n");
+	stack16_free(tmp);
+}
+
+struct stack16* stack_duplicate(struct stack16* stack) {
+	struct stack16* tmp = stack16_create();
+	struct stack16* res = stack16_create();
+	uint16_t val;
+	while (stack16_pop(stack, &val) == 0) {
+		stack16_push(tmp, val);
+	}
+	while (stack16_pop(tmp, &val) == 0) {
+		stack16_push(stack, val);
+		stack16_push(res, val);
+	}
+	stack16_free(tmp);
+	return res;
 }
 

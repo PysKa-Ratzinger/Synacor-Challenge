@@ -13,6 +13,11 @@ struct stack16;
 struct stack16* stack16_create();
 
 /*
+ * stack_duplicate: Duplicates a stack
+ */
+struct stack16* stack_duplicate(struct stack16* stack);
+
+/*
  * Frees the memory allocated for the stack
  */
 void stack16_free(struct stack16* s);

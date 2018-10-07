@@ -224,6 +224,23 @@ char machine_out(struct machine* m, uint16_t a) {
 	return 0;
 }
 
+char machine_in(struct machine* m, uint16_t a) {
+	ASSERT_VALID(a);
+	static char buffer[MAX_INPUT_SIZE];
+	static size_t buffer_sz = 0;
+	static size_t buffer_offset = 0;
+	if (buffer_offset == buffer_sz) {
+		fgets(buffer, MAX_INPUT_SIZE, stdin);
+		buffer_sz = strlen(buffer);
+		buffer_offset = 0;
+		debugger_debug_enable(m->debugger);
+	}
+	MACHINE_REG(m, a) = buffer[buffer_offset];
+	buffer_offset++;
+	m->ip += 2;
+	return 0;
+}
+
 char machine_nop(struct machine* m) {
 	m->ip++;
 	return 0;
@@ -243,33 +260,48 @@ int machine_tick(struct machine* machine) {
 	}
 
 	switch (*op) {
-		/* Case 0 */
-		case HALT: return 1;
-		case SET:  return machine_set( machine, op[1], op[2]);
+		case HALT:
+			printf("Program halted!\n");
+			debugger_debug_enable(machine->debugger);
+			return 0;
+		case SET:  return machine_set (machine, op[1], op[2]);
 		case PUSH: return machine_push(machine, op[1]);
-		case POP:  return machine_pop( machine, op[1]);
-		case EQ:   return machine_eq(  machine, op[1], op[2], op[3]);
-		case GT:   return machine_gt(  machine, op[1], op[2], op[3]);
-		case JMP:  return machine_jmp( machine, op[1]);
-		case JNZ:  return machine_jnz( machine, op[1], op[2]);
-		case JZ:   return machine_jz(  machine, op[1], op[2]);
-		case ADD:  return machine_add( machine, op[1], op[2], op[3]);
+		case POP:  return machine_pop (machine, op[1]);
+		case EQ:   return machine_eq  (machine, op[1], op[2], op[3]);
+		case GT:   return machine_gt  (machine, op[1], op[2], op[3]);
+		case JMP:  return machine_jmp (machine, op[1]);
+		case JNZ:  return machine_jnz (machine, op[1], op[2]);
+		case JZ:   return machine_jz  (machine, op[1], op[2]);
+		case ADD:  return machine_add (machine, op[1], op[2], op[3]);
 		case MULT: return machine_mult(machine, op[1], op[2], op[3]);
-		case MOD:  return machine_mod( machine, op[1], op[2], op[3]);
-		case AND:  return machine_and( machine, op[1], op[2], op[3]);
-		case OR:   return machine_or(  machine, op[1], op[2], op[3]);
-		case NOT:  return machine_not( machine, op[1], op[2]);
+		case MOD:  return machine_mod (machine, op[1], op[2], op[3]);
+		case AND:  return machine_and (machine, op[1], op[2], op[3]);
+		case OR:   return machine_or  (machine, op[1], op[2], op[3]);
+		case NOT:  return machine_not (machine, op[1], op[2]);
 		case RMEM: return machine_rmem(machine, op[1], op[2]);
 		case WMEM: return machine_wmem(machine, op[1], op[2]);
 		case CALL: return machine_call(machine, op[1]);
-		case RET:  return machine_ret( machine);
-		case OUT:  return machine_out( machine, op[1]);
-		case NOP:  return machine_nop( machine);
+		case RET:  return machine_ret (machine);
+		case OUT:  return machine_out (machine, op[1]);
+		case IN:   return machine_in  (machine, op[1]);
+		case NOP:  return machine_nop (machine);
 		default:   return -1;
 	}
 }
 
 void machine_run(struct machine* machine) {
 	while (machine_tick(machine) == 0);
+}
+
+struct machine* machine_duplicate(struct machine* machine) {
+	struct machine* res = malloc(sizeof(*res));
+	if (res == NULL)
+		return NULL;
+	memcpy(res->ram, machine->ram, sizeof(res->ram));
+	memcpy(res->reg, machine->reg, sizeof(res->reg));
+	res->ip = res->ram + (machine->ip - machine->ram);
+	res->stack = stack_duplicate(machine->stack);
+	res->debugger = NULL;
+	return res;
 }
 
