@@ -1,17 +1,27 @@
 CC=gcc
-OBJECTS=main.o machine.o stack.o machine_debug.o circular_array.o
 CFLAGS=-Wall -Wextra -Werror -g
 
-all: main
+SRCDIR = ./src
+OBJDIR = ./build
+BINDIR = ./bin
+TARGET = main
 
-%.o: %.c %.h
+SOURCES = $(wildcard $(SRCDIR)/*.c) $(wildcard $(SRCDIR)/**/*.c) $(wildcard $(SRCDIR)/**/**/*.c)
+OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 
-main: $(OBJECTS)
-	gcc -o main $(CFLAGS) $^
+dir_guard=@mkdir -p $(@D)
 
-run: main
-	./main
+$(BINDIR)/$(TARGET): $(OBJECTS)
+	$(dir_guard)
+	$(CC) -I. -I./include $+ -o $@
+
+$(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.c
+	$(dir_guard)
+	$(CC) $(CFLAGS) -c $< -I./include -o $@
+
+run: $(BINDIR)/$(TARGET)
+	$(BINDIR)/$(TARGET) ${ARGS}
 
 clean:
-	rm -rvf ./main $(OBJECTS)
+	rm -rvf $(BINDIR) $(OBJDIR)
 

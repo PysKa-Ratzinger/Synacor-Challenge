@@ -3,13 +3,19 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "stack.h"
 #include "machine.h"
 #include "machine_debug.h"
 
-int main() {
+int main(int argc, char* argv[]) {
+	if (argc != 2) {
+		printf("USAGE: %s PROGRAM\n", argv[0]);
+		return 1;
+	}
+
+	char *program = argv[1];
+
 	struct machine* m = machine_new();
-	int fd = open("../challenge.bin", O_RDONLY);
+	int fd = open(program, O_RDONLY);
 	machine_load_program(m, fd);
 	close(fd);
 

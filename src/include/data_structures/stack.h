@@ -15,7 +15,7 @@ struct stack16* stack16_create();
 /*
  * stack_duplicate: Duplicates a stack
  */
-struct stack16* stack_duplicate(struct stack16* stack);
+struct stack16* stack16_duplicate(struct stack16* stack);
 
 /*
  * Frees the memory allocated for the stack
@@ -36,6 +36,11 @@ int stack16_pop(struct stack16* s, uint16_t* val);
  * Prints the stack
  */
 void stack16_print(struct stack16* s);
+
+/*
+ * Prints to stdout the result of comparing two stacks
+ */
+void stack16_show_compare(struct stack16* s, struct stack16* s2);
 
 #endif  // STACK_H_
 

@@ -1,4 +1,4 @@
-#include "stack.h"
+#include "data_structures/stack.h"
 
 #include <stdio.h>
 
@@ -14,12 +14,18 @@
 struct stack16_cell;
 
 struct stack16_cell* stack16_cell_create(struct stack16_cell* prev);
+
 void stack16_cell_free(struct stack16_cell* c);
+
 void stack16_cell_free_recursive(struct stack16_cell* c);
+
 struct stack16_cell* stack16_cell_push(struct stack16_cell* cell,
                                        uint16_t value);
+
 struct stack16_cell* stack16_cell_pop(struct stack16_cell* cell,
                                       uint16_t* val);
+
+struct stack16_cell* stack16_cell_duplicate(struct stack16_cell* cell);
 
 /*
  * struct stack16: Structure representing a full stack which holds individual
@@ -81,6 +87,16 @@ void stack16_cell_free_recursive(struct stack16_cell* c) {
         free(curr);
         curr = prev;
     }
+}
+
+struct stack16_cell* stack16_cell_duplicate(struct stack16_cell* cell) {
+	if (cell == NULL)
+		return NULL;
+	struct stack16_cell* res = malloc(sizeof(*res));
+	res->num_vals = cell->num_vals;
+	memcpy(res->vals, cell->vals, sizeof(res->vals));
+	res->prev = stack16_cell_duplicate(cell->prev);
+	return res;
 }
 
 struct stack16* stack16_create() {
@@ -172,18 +188,57 @@ void stack16_print(struct stack16* s) {
 	stack16_free(tmp);
 }
 
-struct stack16* stack_duplicate(struct stack16* stack) {
-	struct stack16* tmp = stack16_create();
-	struct stack16* res = stack16_create();
-	uint16_t val;
-	while (stack16_pop(stack, &val) == 0) {
-		stack16_push(tmp, val);
-	}
-	while (stack16_pop(tmp, &val) == 0) {
-		stack16_push(stack, val);
-		stack16_push(res, val);
-	}
-	stack16_free(tmp);
+struct stack16* stack16_duplicate(struct stack16* stack) {
+	struct stack16* res = malloc(sizeof(*res));
+	res->num_elems = stack->num_elems;
+	res->top = stack16_cell_duplicate(stack->top);
 	return res;
+}
+
+void stack16_show_compare(struct stack16* s1, struct stack16* s2) {
+	struct stack16* sc1 = stack16_duplicate(s1);
+	struct stack16* sc2 = stack16_duplicate(s2);
+
+	printf("---- STACK COMPARISON START ----\n");
+
+	uint16_t val1, val2;
+	size_t position = 0;
+	size_t num_equal = 0;
+	while (stack16_pop(sc1, &val1) == 0) {
+		position++;
+		if (stack16_pop(sc2, &val2) == 0) {
+			if (val1 == val2) {
+				num_equal++;
+			} else {
+				if (num_equal) {
+					printf("...\n%lu equal elements\n...\n",
+							num_equal);
+					num_equal = 0;
+				}
+				printf("%lu: %04x - %04x\n", position, val1, val2);
+			}
+		} else {
+			printf("%lu: %04x - ...\n", position, val1);
+		}
+	}
+
+	if (num_equal) {
+		printf("...\n%lu equal elements\n...\n", num_equal);
+	}
+
+	while (stack16_pop(sc1, &val1) == 0) {
+		position++;
+		printf("%lu: %04x - ...\n", position, val1);
+	}
+
+	while (stack16_pop(sc2, &val2) == 0) {
+		position++;
+		printf("%lu: ... - %04x\n", position, val2);
+	}
+	printf("---- STACK COMPARISON END ----\n");
+
+	stack16_free(sc1);
+	stack16_free(sc2);
+	return;
 }
 

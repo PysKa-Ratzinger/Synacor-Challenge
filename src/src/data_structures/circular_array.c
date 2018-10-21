@@ -1,4 +1,4 @@
-#include "circular_array.h"
+#include "data_structures/circular_array.h"
 
 #include <stdio.h>
 #include <string.h>

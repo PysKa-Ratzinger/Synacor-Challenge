@@ -1,7 +1,7 @@
 #include "machine.h"
 #include "machine_debug.h"
 #include "common.h"
-#include "stack.h"
+#include "data_structures/stack.h"
 
 #include <unistd.h>
 
@@ -300,7 +300,7 @@ struct machine* machine_duplicate(struct machine* machine) {
 	memcpy(res->ram, machine->ram, sizeof(res->ram));
 	memcpy(res->reg, machine->reg, sizeof(res->reg));
 	res->ip = res->ram + (machine->ip - machine->ram);
-	res->stack = stack_duplicate(machine->stack);
+	res->stack = stack16_duplicate(machine->stack);
 	res->debugger = NULL;
 	return res;
 }
