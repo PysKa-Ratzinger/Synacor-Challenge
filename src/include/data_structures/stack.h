@@ -1,46 +1,91 @@
 #ifndef STACK_H_
 #define STACK_H_
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-
-struct stack16;
-
-/*
- * Creates an initialized stack structure
- */
-struct stack16* stack16_create();
-
-/*
- * stack_duplicate: Duplicates a stack
- */
-struct stack16* stack16_duplicate(struct stack16* stack);
-
-/*
- * Frees the memory allocated for the stack
- */
-void stack16_free(struct stack16* s);
-
-/*
- * Pushes a 16-bit value into the stack
- */
-int stack16_push(struct stack16* s, uint16_t value);
-
-/*
- * Pops a 16-bit value from the stack
- */
-int stack16_pop(struct stack16* s, uint16_t* val);
+#include <iostream>
+#include <stack>
 
 /*
  * Prints the stack
  */
-void stack16_print(struct stack16* s);
+template <typename T>
+void stack_print(const std::stack<T>& q)
+{
+	std::stack<T> tmp = q;
+
+	std::cout << "STACK BASE" << std::endl;
+	while (tmp.size()) {
+		T val = tmp.top();
+		std::cout << ": " << val << std::endl;
+		tmp.pop();
+	}
+	std::cout << "STACK STOP" << std::endl;
+}
 
 /*
  * Prints to stdout the result of comparing two stacks
  */
-void stack16_show_compare(struct stack16* s, struct stack16* s2);
+template <typename T>
+void stack_show_compare(const std::stack<T>& q1, const std::stack<T>& q2)
+{
+	std::stack<T> t1 = q1;
+	std::stack<T> t2 = q2;
+
+	std::cout << "---- STACK COMPARISON START ----" << std::endl;
+
+	T val1, val2;
+	size_t pos = 0;
+	size_t n_equal = 0;
+	while (t1.size()) {
+		val1 = t1.top();
+		t1.pop();
+		pos++;
+
+		if (t2.size()) {
+			val2 = t2.top();
+			t2.pop();
+
+			if (val1 == val2) {
+				n_equal++;
+			} else {
+				if (n_equal) {
+					std::cout << "..." << std::endl;
+					std::cout << n_equal
+						<< "equal elements" << std::endl;
+					std::cout << "..." << std::endl;
+					n_equal = 0;
+				}
+				std::cout << pos << ": " << val1 << " - "
+					<< val2 << std::endl;
+			}
+		} else {
+			std::cout << pos << ": " << val1 << " - ..."
+				<< std::endl;
+		}
+	}
+
+	if (n_equal) {
+		std::cout << "..." << std::endl;
+		std::cout << n_equal
+			<< "equal elements" << std::endl;
+		std::cout << "..." << std::endl;
+	}
+
+	while (t1.size()) {
+		val1 = t1.top();
+		t1.pop();
+		pos++;
+		std::cout << pos << ": " << val1 << " - ..." << std::endl;
+	}
+
+	while (t2.size()) {
+		val2 = t2.top();
+		t2.pop();
+		pos++;
+		std::cout << pos << ": ... - " << val2 << std::endl;
+	}
+
+	std::cout << "---- STACK COMPARISON END ----" << std::endl;
+}
 
 #endif  // STACK_H_
 
