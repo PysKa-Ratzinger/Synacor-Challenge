@@ -5,23 +5,6 @@
 #include <stack>
 
 /*
- * Prints the stack
- */
-template <typename T>
-void stack_print(const std::stack<T>& q)
-{
-	std::stack<T> tmp = q;
-
-	std::cout << "STACK BASE" << std::endl;
-	while (tmp.size()) {
-		T val = tmp.top();
-		std::cout << ": " << val << std::endl;
-		tmp.pop();
-	}
-	std::cout << "STACK STOP" << std::endl;
-}
-
-/*
  * Prints to stdout the result of comparing two stacks
  */
 template <typename T>

@@ -27,6 +27,10 @@ public:
 		std::stack<uint16_t> stack;
 		uint16_t ip;
 		size_t ticks;
+
+		char buffer[MAX_INPUT_SIZE];
+		size_t buffer_sz = 0;
+		size_t buffer_offset = 0;
 	};
 
 	class Debugger {
@@ -49,11 +53,10 @@ public:
 	Machine();
 	~Machine() {}
 
-	bool tick();
-	void run();
+	bool tick(Debugger* dbg);
+	void run(Debugger* dbg);
 
 	size_t load_program(int fd);
-	void attach_dbg(std::weak_ptr<Debugger> dbg);
 
 private:
 	uint16_t& get_reg(uint16_t a);
@@ -82,7 +85,5 @@ private:
 	bool Nop ();
 
 	State m_state;
-
-	std::weak_ptr<Debugger> m_dbg;
 };
 

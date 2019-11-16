@@ -19,8 +19,7 @@ int main(int argc, char* argv[]) {
 	m.load_program(fd);
 	close(fd);
 
-	// m.attach_dbg(dbg);
-	m.run();
+	dbg->run(m);
 
 	return 0;
 }

@@ -79,12 +79,6 @@ Machine::load_program(int fd) {
 	return total_bytes;
 }
 
-void
-Machine::attach_dbg(std::weak_ptr<Debugger> dbg)
-{
-	m_dbg = dbg;
-}
-
 uint16_t&
 Machine::get_reg(uint16_t a)
 {
@@ -276,16 +270,13 @@ Machine::Out(uint16_t a) {
 bool
 Machine::In(uint16_t a) {
 	ASSERT_VALID(a);
-	static char buffer[MAX_INPUT_SIZE];
-	static size_t buffer_sz = 0;
-	static size_t buffer_offset = 0;
-	if (buffer_offset == buffer_sz) {
-		fgets(buffer, MAX_INPUT_SIZE, stdin);
-		buffer_sz = strlen(buffer);
-		buffer_offset = 0;
+	if (m_state.buffer_offset == m_state.buffer_sz) {
+		fgets(m_state.buffer, MAX_INPUT_SIZE, stdin);
+		m_state.buffer_sz = strlen(m_state.buffer);
+		m_state.buffer_offset = 0;
 	}
-	get_reg(a) = buffer[buffer_offset];
-	buffer_offset++;
+	get_reg(a) = m_state.buffer[m_state.buffer_offset];
+	m_state.buffer_offset++;
 	m_state.ip += 2;
 	return true;
 }
@@ -296,12 +287,16 @@ Machine::Nop() {
 	return true;
 }
 
-bool Machine::tick() {
+bool Machine::tick(Debugger* dbg) {
 	uint16_t &op = m_state.ram.at(m_state.ip);
 	m_state.ticks++;
 
-	if (auto d = m_dbg.lock()) {
-		d->beforeOp(*this);
+	if (dbg) {
+		if (op == IN) {
+			dbg->beforeHalted(*this);
+		} else {
+			dbg->beforeOp(*this);
+		}
 	}
 
 	if (op > 21) {
@@ -314,8 +309,8 @@ bool Machine::tick() {
 	switch (op) {
 		case HALT:
 			printf("Program halted!\n");
-			if (auto d = m_dbg.lock()) {
-				return d->beforeHalted(*this);
+			if (dbg) {
+				return dbg->beforeHalted(*this);
 			} else {
 				return false;
 			}
@@ -346,7 +341,7 @@ bool Machine::tick() {
 }
 
 void
-Machine::run() {
-	while (tick());
+Machine::run(Debugger* dbg) {
+	while (tick(dbg));
 }
 

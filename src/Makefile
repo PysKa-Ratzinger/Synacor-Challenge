@@ -1,5 +1,6 @@
 CC=g++
 CFLAGS=-Wall -Wextra -Werror -g
+LDFLAGS=-lncurses
 
 SRCDIR = ./src
 OBJDIR = ./build
@@ -13,7 +14,7 @@ dir_guard=@mkdir -p $(@D)
 
 $(BINDIR)/$(TARGET): $(OBJECTS)
 	$(dir_guard)
-	$(CC) -I. -I./include $+ -o $@
+	$(CC) -I. -I./include $+ -o $@ $(LDFLAGS)
 
 $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	$(dir_guard)
