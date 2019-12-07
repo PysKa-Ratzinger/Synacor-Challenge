@@ -30,9 +30,9 @@
 #define NOP  21
 
 #define ASSERT_REG(x) {if ((x)<= 0x7fff || ((x)&0x7fff)>7) { \
-	printf("Invalid REG! (%04x)\n", (x)); return 1;}}
+	fprintf(m_err, "Invalid REG! (%04x)\n", (x)); return 1;}}
 #define ASSERT_VALID(x) {if ((x)>0x7fff+8) { \
-	printf("Invalid VAL! (%04x)\n", (x)); return 1;}}
+	fprintf(m_err, "Invalid VAL! (%04x)\n", (x)); return 1;}}
 #define CAP(x) ((x)&0x7fff)
 
 Machine::State::State() :
@@ -58,7 +58,8 @@ Machine::Debugger::getIP(const Machine& m)
 	return m.m_state.ip;
 }
 
-Machine::Machine()
+Machine::Machine(FILE* in, FILE* out, FILE* err) :
+	m_in(in), m_out(out), m_err(err)
 {
 
 }
@@ -261,8 +262,8 @@ Machine::Ret() {
 bool
 Machine::Out(uint16_t a) {
 	ASSERT_VALID(a);
-	printf("%c", get_val(a));
-	fflush(stdout);
+	fprintf(m_out, "%c", get_val(a));
+	fflush(m_out);
 	m_state.ip += 2;
 	return true;
 }
@@ -271,7 +272,7 @@ bool
 Machine::In(uint16_t a) {
 	ASSERT_VALID(a);
 	if (m_state.buffer_offset == m_state.buffer_sz) {
-		fgets(m_state.buffer, MAX_INPUT_SIZE, stdin);
+		fgets(m_state.buffer, MAX_INPUT_SIZE, m_in);
 		m_state.buffer_sz = strlen(m_state.buffer);
 		m_state.buffer_offset = 0;
 	}
@@ -293,14 +294,17 @@ bool Machine::tick(Debugger* dbg) {
 
 	if (dbg) {
 		if (op == IN) {
-			dbg->beforeHalted(*this);
+			// If call to IN would block
+			if (m_state.buffer_offset == m_state.buffer_sz) {
+				dbg->beforeHalted(*this);
+			}
 		} else {
 			dbg->beforeOp(*this);
 		}
 	}
 
 	if (op > 21) {
-		fprintf(stderr, "Invalid op: %04x\n", op);
+		fprintf(m_err, "Invalid op: %04x\n", op);
 		// machine_dump(machine);
 		return false;
 	}
@@ -308,7 +312,7 @@ bool Machine::tick(Debugger* dbg) {
 	uint16_t* p = &op;
 	switch (op) {
 		case HALT:
-			printf("Program halted!\n");
+			fprintf(m_out, "Program halted!\n");
 			if (dbg) {
 				return dbg->beforeHalted(*this);
 			} else {

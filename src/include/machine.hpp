@@ -50,7 +50,7 @@ public:
 
 	friend class Debugger;
 
-	Machine();
+	Machine(FILE* in, FILE* out, FILE* err);
 	~Machine() {}
 
 	bool tick(Debugger* dbg);
@@ -85,5 +85,9 @@ private:
 	bool Nop ();
 
 	State m_state;
+
+	FILE* m_in;
+	FILE* m_out;
+	FILE* m_err;
 };
 

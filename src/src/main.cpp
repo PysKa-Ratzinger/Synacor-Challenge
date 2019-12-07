@@ -1,6 +1,6 @@
+#include <fcntl.h>
 #include <stdio.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
 
 #include "machine.hpp"
@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	Machine m;
+	Machine m(stdin, stdout, stderr);
 	std::shared_ptr<Debugger> dbg(new Debugger());
 
 	int fd = open(argv[1], O_RDONLY);

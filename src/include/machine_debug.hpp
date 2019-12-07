@@ -4,7 +4,6 @@
 
 #include <vector>
 #include <set>
-#include <ncurses.h>
 
 class Debugger : public Machine::Debugger {
 public:
@@ -13,20 +12,18 @@ public:
 
 	bool beforeHalted(Machine& m) override;
 	void beforeOp(Machine& m) override;
+
 	bool shell(Machine::State& s);
 
-	void printStack(WINDOW* w, const Machine::State& m);
-	void printMemory(WINDOW* w, const Machine::State& m, uint16_t addr,
+	void printStack(const Machine::State& m);
+	void printMemory(const Machine::State& m, uint16_t addr,
 			uint16_t size);
-	void printRegs(WINDOW* w, const Machine::State& m);
+	void printRegs(const Machine::State& m);
 
-	void initWindows();
-	void refreshWindows();
-	void updateWindows();
 	void dumpState(const Machine::State& m);
 
-	void disassemble(WINDOW* w, const Machine::State& m, size_t opcodes);
-	void disassemble(WINDOW* w, const Machine::State& m, size_t opcodes,
+	void disassemble(const Machine::State& m, size_t opcodes);
+	void disassemble(const Machine::State& m, size_t opcodes,
 			size_t ip);
 
 	void setBreakpoint(uint16_t ip, bool active);
@@ -67,13 +64,6 @@ private:
 	size_t m_disass_pos = 0;
 	size_t m_disass_next_op_size = 0;
 	size_t m_memory_pos = 0;
-
-	WINDOW* m_w_memory;
-	WINDOW* m_w_regs;
-	WINDOW* m_w_stack;
-	WINDOW* m_w_disass;
-
-	WINDOW* m_w_output;
 };
 
 void machine_dump(struct machine* machine);

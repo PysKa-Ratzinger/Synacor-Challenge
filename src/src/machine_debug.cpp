@@ -4,7 +4,6 @@
 #include "data_structures/stack.h"
 
 #include <stdio.h>
-#include <curses.h>
 
 #define CIRCULAR_SIZE 105
 #define MAX_BREAKPOINTS 500
@@ -37,31 +36,20 @@ Debugger::Debugger() :
 	m_stacks(MAX_STACKS),
 	m_rams(MAX_MEMORIES),
 
-	m_debug_opcodes(80),
+	m_debug_opcodes(20),
 	m_skips(0),
 	m_dbg_enabled(true),
 	m_dbg_stack(false),
 	m_dbg_regs(false),
-	m_dbg_disass(true),
-	m_dbg_memory(false),
-
-	m_w_memory(nullptr),
-	m_w_regs(nullptr),
-	m_w_stack(nullptr),
-	m_w_disass(nullptr)
+	m_dbg_disass(false),
+	m_dbg_memory(false)
 {
-	initWindows();
+
 }
 
 Debugger::~Debugger()
 {
-	if (m_w_disass) delwin(m_w_disass);
-	if (m_w_memory) delwin(m_w_memory);
-	if (m_w_stack) delwin(m_w_stack);
-	if (m_w_regs) delwin(m_w_regs);
-	if (m_w_output) delwin(m_w_output);
 
-	endwin();
 }
 
 void
@@ -71,31 +59,17 @@ Debugger::setDebug(bool value)
 }
 
 void
-Debugger::printStack(WINDOW* w, const Machine::State& s)
+Debugger::printStack(const Machine::State& s)
 {
 	std::stack<uint16_t> tmp = s.stack;
-	char buffer[80];
 
-	int lines, cols;
-	getmaxyx(w, lines, cols);
-
-	int maxcols = std::min(cols, 80);
-	if (lines <= 2) {
-		snprintf(buffer, maxcols, "CANNOT PRINT STACK");
-		wprintw(w, buffer);
-	}
-
-	snprintf(buffer, maxcols, "STACK TOP\n");
-	wprintw(w, buffer);
-	lines--;
-	while (tmp.size() && lines > 1) {
+	printf("STACK TOP\n");
+	while (tmp.size()) {
 		uint16_t val = tmp.top();
-		snprintf(buffer, maxcols, ": 0x%04x\n", val);
-		wprintw(w, buffer);
+		printf(": 0x%04x\n", val);
 		tmp.pop();
 	}
-	snprintf(buffer, maxcols, "STACK BASE\n");
-	wprintw(w, buffer);
+	printf("STACK BASE\n");
 }
 
 char get_printable(uint16_t val) {
@@ -131,7 +105,7 @@ void debugger_print_helper(char* buffer, size_t nbytes, uint16_t page,
 }
 
 void
-Debugger::printMemory(WINDOW* w, const Machine::State& s, uint16_t addr,
+Debugger::printMemory(const Machine::State& s, uint16_t addr,
 		uint16_t size)
 {
 	uint16_t buffer[16] = {0};
@@ -141,15 +115,9 @@ Debugger::printMemory(WINDOW* w, const Machine::State& s, uint16_t addr,
 	size_t num_elems = 0;
 
 	char strbuffer[80];
-	int lines, cols;
-	getmaxyx(w, lines, cols);
-	int maxcols = std::min(cols, 80);
 
-	snprintf(strbuffer, maxcols, "MEMORY DUMP (%04x, %04x)\n", addr,
-			addr + size);
-	wprintw(w, strbuffer);
-	lines--;
-	while (size && lines) {
+	printf("MEMORY DUMP (%04x, %04x)\n", addr, addr + size);
+	while (size) {
 		int index = addr - curr_page;
 		exist[index] = 1;
 		buffer[index] = s.ram[addr];
@@ -157,10 +125,9 @@ Debugger::printMemory(WINDOW* w, const Machine::State& s, uint16_t addr,
 		addr++;
 		num_elems++;
 		if (addr == next_page) {
-			debugger_print_helper(strbuffer, maxcols, curr_page,
+			debugger_print_helper(strbuffer, 80, curr_page,
 					buffer, exist);
-			wprintw(w, strbuffer);
-			lines--;
+			printf("%s", strbuffer);
 			curr_page = next_page;
 			next_page += 0x10;
 			memset(exist, 0, sizeof(exist));
@@ -168,33 +135,32 @@ Debugger::printMemory(WINDOW* w, const Machine::State& s, uint16_t addr,
 		}
 
 	}
-	if (num_elems && lines) {
-		debugger_print_helper(strbuffer, maxcols, curr_page, buffer,
-				exist);
-		wprintw(w, strbuffer);
-		lines--;
+
+	if (num_elems) {
+		debugger_print_helper(strbuffer, 80, curr_page, buffer, exist);
+		printf("%s", strbuffer);
 	}
 }
 
 void
-Debugger::printRegs(WINDOW* w, const Machine::State& s)
+Debugger::printRegs(const Machine::State& s)
 {
 	auto& reg = s.reg;
-	mvwprintw(w, 1, 1, "R0: %04x, R1: %04x, R2: %04x, R3: %04x\n",
+	printf("R0: %04x, R1: %04x, R2: %04x, R3: %04x\n",
 			reg[0], reg[1], reg[2], reg[3]);
-	mvwprintw(w, 2, 1, "R4: %04x, R5: %04x, R6: %04x, R7: %04x\n",
+	printf("R4: %04x, R5: %04x, R6: %04x, R7: %04x\n",
 			reg[4], reg[5], reg[6], reg[7]);
-	mvwprintw(w, 3, 1, "IP: %04x    TICKS: %lu\n", s.ip, s.ticks);
+	printf("IP: %04x    TICKS: %lu\n", s.ip, s.ticks);
 }
 
 void
-Debugger::disassemble(WINDOW* w, const Machine::State& s, size_t opcodes)
+Debugger::disassemble(const Machine::State& s, size_t opcodes)
 {
-	return disassemble(w, s, opcodes, s.ip);
+	return disassemble(s, opcodes, s.ip);
 }
 
 void
-Debugger::disassemble(WINDOW* w, const Machine::State& s, size_t opcodes, size_t ip)
+Debugger::disassemble(const Machine::State& s, size_t opcodes, size_t ip)
 {
 	uint16_t op;
 
@@ -211,41 +177,31 @@ Debugger::disassemble(WINDOW* w, const Machine::State& s, size_t opcodes, size_t
 	};
 
 	int currLine = 0;
-	int lines;
-	lines = getmaxy(w);
 
 	bool first = true;
-	for (; opcodes && lines; lines--, opcodes--) {
+	for (; opcodes--; ) {
 		if (ip > MAX_ADDR)
 			break;
+
 		op = s.ram[ip];
-		bool reverse = false;
 		if (first) {
 			m_disass_next_op_size = 1;
 		}
-		if (ip == s.ip) {
-			wattron(w, A_REVERSE);
-			reverse = true;
-		}
-		mvwprintw(w, currLine, 0, "0x%04lx: ", ip);
+		printf("0x%04lx: ", ip);
 		if (op >= ARRAY_SIZE(op_names)) {
-			mvwprintw(w, currLine, 8, "%04x%10s???\n", op, "");
+			printf("%04x%10s???\n", op, "");
 		} else {
 			size_t num_ops = op_size[op];
 			if (first) {
 				m_disass_next_op_size = num_ops + 1;
 			}
-			mvwprintw(w, currLine, 8, "%-4s",
-					op_names[op].c_str());
+			printf("%-4s", op_names[op].c_str());
 			for (size_t i=0; i<num_ops; i++) {
-				mvwprintw(w, currLine, 12 + 6*i, " %-5s",
-						op_to_mem_repr(s.ram[ip+1+i])
+				printf(" %-5s", op_to_mem_repr(s.ram[ip+1+i])
 						.c_str());
 			}
+			printf("\n");
 			ip += num_ops;
-		}
-		if (reverse) {
-			wattrset(w, 0);
 		}
 		ip++;
 		currLine++;
@@ -254,80 +210,23 @@ Debugger::disassemble(WINDOW* w, const Machine::State& s, size_t opcodes, size_t
 }
 
 void
-Debugger::refreshWindows()
-{
-	endwin();
-	initWindows();
-}
-
-void
-Debugger::initWindows()
-{
-	initscr();
-	cbreak();
-	noecho();
-	keypad(stdscr, TRUE);
-
-	if (m_w_disass) delwin(m_w_disass);
-	if (m_w_memory) delwin(m_w_memory);
-	if (m_w_stack) delwin(m_w_stack);
-	if (m_w_regs) delwin(m_w_regs);
-	if (m_w_output) delwin(m_w_output);
-}
-
-void
-Debugger::updateWindows()
-{
-	int lines, cols;
-	getmaxyx(stdscr, lines, cols);
-	lines -= 10;
-
-	if (m_dbg_disass) {
-		int startx = 0;
-		int starty = 0;
-		int height = lines;
-		int width = cols;
-		if (m_dbg_memory) {
-			height /= 2;
-		}
-		if (m_dbg_regs || m_dbg_stack) {
-			starty += lines / 2;
-			width /= 2;
-		}
-
-		if (m_w_disass) {
-			delwin(m_w_disass);
-		}
-		m_w_disass = newwin(height, width, starty, startx);
-	}
-}
-
-void
 Debugger::dumpState(const Machine::State& s)
 {
-	updateWindows();
-
 	if (m_dbg_memory) {
-		printMemory(m_w_memory, s, m_memory_pos, 16 * 32);
-		wrefresh(m_w_memory);
+		printMemory(s, m_memory_pos, 16 * 32);
 	}
 
 	if (m_dbg_stack) {
-		printStack(m_w_stack, s);
-		wrefresh(m_w_stack);
+		printStack(s);
 	}
 
 	if (m_dbg_regs) {
-		printRegs(m_w_regs, s);
-		wrefresh(m_w_regs);
+		printRegs(s);
 	}
 
 	if (m_dbg_disass) {
-		disassemble(m_w_disass, s, m_debug_opcodes, m_disass_pos);
-		wrefresh(m_w_disass);
+		disassemble(s, m_debug_opcodes, m_disass_pos);
 	}
-
-	refresh();
 }
 
 void
@@ -479,32 +378,10 @@ Debugger::shell(Machine::State& s)
 	while (true) {
 		this->dumpState(s);
 
-		mvprintw(LINES-1, 0, "(debug)                          ");
-		move(LINES-1, 8);
+		printf("(debug) ");
 
 		char buffer[256];
-		size_t buffer_n = 0;
-		int ch;
-		do {
-			ch = getch();
-
-			switch (ch) {
-			case KEY_UP:
-				m_disass_pos--;
-				this->dumpState(s);
-				break;
-
-			case KEY_DOWN:
-				m_disass_pos += m_disass_next_op_size;
-				this->dumpState(s);
-				break;
-
-			default:
-				buffer[buffer_n++] = ch;
-				mvprintw(LINES-1, 7+buffer_n, "%c", ch);
-				refresh();
-			}
-		} while (ch != '\n');
+		fgets(buffer, 256, stdin);
 
 		char *cmd = buffer;
 
@@ -514,10 +391,7 @@ Debugger::shell(Machine::State& s)
 			memcpy(prev_buffer, buffer, sizeof(256));
 		}
 
-		if (strncmp(cmd, "ref", 3) == 0) {
-			refreshWindows();
-
-		} else if (strncmp(cmd, "stack_on", 8) == 0) {
+		if (strncmp(cmd, "stack_on", 8) == 0) {
 			m_dbg_stack = true;
 
 		} else if (strncmp(cmd, "stack_off", 9) == 0) {
@@ -648,9 +522,9 @@ Debugger::beforeHalted(Machine& m)
 {
 	Machine::State& s = getState(m);
 	this->m_disass_pos = s.ip;
-	this->setDebug(true);
 	this->m_skips = 0;
 	this->m_sskips = 0;
+	this->setDebug(true);
 	this->shell(s);
 	return true;
 }
