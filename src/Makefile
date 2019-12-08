@@ -1,6 +1,6 @@
 CC=g++
-CFLAGS=-Wall -Wextra -Werror -g
-LDFLAGS=-lncurses
+CFLAGS=-Wall -Wextra -Werror -g `pkg-config --cflags gtkmm-3.0`
+LDFLAGS=-lncurses `pkg-config --libs gtkmm-3.0`
 
 SRCDIR = ./src
 OBJDIR = ./build
