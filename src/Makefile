@@ -1,6 +1,6 @@
 CC=g++
-CFLAGS=-Wall -Wextra -Werror -g `pkg-config --cflags gtkmm-3.0`
-LDFLAGS=-lncurses `pkg-config --libs gtkmm-3.0`
+CFLAGS=-O2 -Wall -Wextra -Werror -pedantic-errors -g `pkg-config --cflags gtkmm-3.0`
+LDFLAGS=-lncurses `pkg-config --libs gtkmm-3.0` -lpthread
 
 SRCDIR = ./src
 OBJDIR = ./build
@@ -14,11 +14,11 @@ dir_guard=@mkdir -p $(@D)
 
 $(BINDIR)/$(TARGET): $(OBJECTS)
 	$(dir_guard)
-	$(CC) -I. -I./include $+ -o $@ $(LDFLAGS)
+	$(CC) $+ -o $@ $(LDFLAGS)
 
 $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	$(dir_guard)
-	$(CC) $(CFLAGS) -c $< -I./include -o $@
+	$(CC) $(CFLAGS) -c $< -I./src -o $@
 
 run: $(BINDIR)/$(TARGET)
 	$(BINDIR)/$(TARGET) ${ARGS}

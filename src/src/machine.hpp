@@ -9,6 +9,8 @@
 #include <memory>
 #include <array>
 #include <stack>
+#include <mutex>
+#include <condition_variable>
 
 #define MAX_INPUT_SIZE 128
 
@@ -50,17 +52,20 @@ public:
 
 	friend class Debugger;
 
-	Machine(FILE* in, FILE* out, FILE* err);
+	Machine(int in, int out, int err);
 	~Machine() {}
 
 	bool tick(Debugger* dbg);
 	void run(Debugger* dbg);
+	void stop();
 
 	size_t load_program(int fd);
 
 private:
 	uint16_t& get_reg(uint16_t a);
 	uint16_t get_val(uint16_t a);
+
+	bool readline();
 
 	bool Set (uint16_t a, uint16_t b);
 	bool Push(uint16_t a);
@@ -86,8 +91,13 @@ private:
 
 	State m_state;
 
-	FILE* m_in;
-	FILE* m_out;
-	FILE* m_err;
+	int m_in;
+	int m_out;
+	int m_err;
+
+	bool m_stop_flag = false;
+
+	std::mutex m_mux;
+	std::condition_variable m_cond;
 };
 

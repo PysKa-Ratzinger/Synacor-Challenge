@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <sstream>
+#include <signal.h>
 
 #define HALT 0
 #define SET  1
@@ -30,9 +31,9 @@
 #define NOP  21
 
 #define ASSERT_REG(x) {if ((x)<= 0x7fff || ((x)&0x7fff)>7) { \
-	fprintf(m_err, "Invalid REG! (%04x)\n", (x)); return 1;}}
+	dprintf(m_err, "Invalid REG! (%04x)\n", (x)); return 1;}}
 #define ASSERT_VALID(x) {if ((x)>0x7fff+8) { \
-	fprintf(m_err, "Invalid VAL! (%04x)\n", (x)); return 1;}}
+	dprintf(m_err, "Invalid VAL! (%04x)\n", (x)); return 1;}}
 #define CAP(x) ((x)&0x7fff)
 
 Machine::State::State() :
@@ -58,7 +59,7 @@ Machine::Debugger::getIP(const Machine& m)
 	return m.m_state.ip;
 }
 
-Machine::Machine(FILE* in, FILE* out, FILE* err) :
+Machine::Machine(int in, int out, int err) :
 	m_in(in), m_out(out), m_err(err)
 {
 
@@ -90,6 +91,40 @@ uint16_t
 Machine::get_val(uint16_t a)
 {
 	return (a <= 0x7fff) ? a : get_reg(a);
+}
+
+bool
+Machine::readline()
+{
+	std::unique_lock<std::mutex> lock(m_mux);
+
+	size_t offset = 0;
+	ssize_t nbytes = 0;
+
+	while (offset < MAX_INPUT_SIZE - 1 && !m_stop_flag) {
+		lock.unlock();
+		nbytes = read(m_in, m_state.buffer + offset, 1);
+		lock.lock();
+
+		if (nbytes < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+
+			return false;
+		}
+
+		if (m_state.buffer[offset] == '\n') {
+			m_state.buffer[offset+1] = '\0';
+			m_state.buffer_sz = offset + 1;
+			m_state.buffer_offset = 0;
+			return true;
+		}
+
+		offset++;
+	}
+
+	return false;
 }
 
 bool
@@ -262,8 +297,7 @@ Machine::Ret() {
 bool
 Machine::Out(uint16_t a) {
 	ASSERT_VALID(a);
-	fprintf(m_out, "%c", get_val(a));
-	fflush(m_out);
+	dprintf(m_out, "%c", get_val(a));
 	m_state.ip += 2;
 	return true;
 }
@@ -271,11 +305,9 @@ Machine::Out(uint16_t a) {
 bool
 Machine::In(uint16_t a) {
 	ASSERT_VALID(a);
-	if (m_state.buffer_offset == m_state.buffer_sz) {
-		fgets(m_state.buffer, MAX_INPUT_SIZE, m_in);
-		m_state.buffer_sz = strlen(m_state.buffer);
-		m_state.buffer_offset = 0;
-	}
+	if (m_state.buffer_offset == m_state.buffer_sz &&
+			this->readline() == false)
+		return false;
 	get_reg(a) = m_state.buffer[m_state.buffer_offset];
 	m_state.buffer_offset++;
 	m_state.ip += 2;
@@ -304,7 +336,7 @@ bool Machine::tick(Debugger* dbg) {
 	}
 
 	if (op > 21) {
-		fprintf(m_err, "Invalid op: %04x\n", op);
+		dprintf(m_err, "Invalid op: %04x\n", op);
 		// machine_dump(machine);
 		return false;
 	}
@@ -312,7 +344,7 @@ bool Machine::tick(Debugger* dbg) {
 	uint16_t* p = &op;
 	switch (op) {
 		case HALT:
-			fprintf(m_out, "Program halted!\n");
+			dprintf(m_out, "Program halted!\n");
 			if (dbg) {
 				return dbg->beforeHalted(*this);
 			} else {
@@ -345,7 +377,16 @@ bool Machine::tick(Debugger* dbg) {
 }
 
 void
-Machine::run(Debugger* dbg) {
+Machine::run(Debugger* dbg)
+{
 	while (tick(dbg));
+}
+
+void
+Machine::stop()
+{
+	std::lock_guard<std::mutex> lock(m_mux);
+	m_stop_flag = true;
+	kill(getpid(), EINTR);
 }
 

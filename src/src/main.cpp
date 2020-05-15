@@ -5,8 +5,6 @@
 
 #include <gtkmm.h>
 
-#include "machine.hpp"
-#include "machine_debug.hpp"
 #include "ui_machine.hpp"
 
 int main(int argc, char* argv[]) {
